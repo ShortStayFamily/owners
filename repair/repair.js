@@ -13,12 +13,15 @@
   };
   var PHONE = "01334 845 845";
   var qs = new URLSearchParams(location.search);
-  var B = BRANDS[qs.get("b")] || BRANDS.stapc;
+  /* student tenants use the St Andrews Property Co website form (self-help checks, photos, a reference by email) */
+  var TENANT_FORM = "https://standrewsproperty.co.uk/maintenance-request/";
+  if (qs.get("b") === "stapc" || qs.get("r") === "tenant") { location.replace(TENANT_FORM); return; }
+  var B = BRANDS[qs.get("b")] || BRANDS.sssa;
   var DEMO = location.hash === "#demo";
   var app = document.getElementById("app");
 
   var S = {
-    name: "", email: "", phone: "", role: ["tenant", "guest", "owner"].indexOf(qs.get("r")) >= 0 ? qs.get("r") : "tenant",
+    name: "", email: "", phone: "", role: ["guest", "owner"].indexOf(qs.get("r")) >= 0 ? qs.get("r") : "guest",
     address: (qs.get("a") || "").slice(0, 200), postcode: (qs.get("pc") || "").slice(0, 12),
     what: "", where: "", urgency: "routine", access: "", enter: true, hp: "", err: "", sending: false
   };
@@ -80,7 +83,8 @@
       field("address", "Address", "text", { req: true, ac: "street-address", ph: "e.g. 12 North Street, St Andrews" }),
       field("postcode", "Postcode", "text", { req: true, ac: "postal-code", max: 12, ph: "KY16 9AA" })
     ]));
-    card.appendChild(el("div", { class: "fld" }, [el("span", { class: "lbl", text: "You are the…" }), chips("role", [["tenant", "Tenant"], ["guest", "Holiday guest"], ["owner", "Owner"], ["other", "Someone else"]])]));
+    card.appendChild(el("div", { class: "fld" }, [el("span", { class: "lbl", text: "You are the…" }), chips("role", [["guest", "Holiday guest"], ["owner", "Owner"], ["other", "Someone else"]])]));
+    card.appendChild(el("p", { class: "muted small" }, ["Student tenant? Please use ", el("a", { href: TENANT_FORM, text: "the St Andrews Property Co repair form" }), " instead."]));
 
     card.appendChild(el("h2", { text: "What's wrong" }));
     card.appendChild(field("what", "Describe the problem", "textarea", { req: true, rows: 5, ph: "What's happened, when it started, and anything you've already tried." }));
