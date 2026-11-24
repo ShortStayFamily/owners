@@ -11,6 +11,9 @@
     stapc: { n: "St Andrews Property Co", img: "img/brand-stapc.png" }
   };
   var HOOK_OK = /^https:\/\/hooks\.zapier\.com\/hooks\/catch\/\d+\/[A-Za-z0-9]+\/?$/;
+  var UUID4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  var PAY_OK = /^https:\/\/([a-z0-9-]+\.)*(xero\.com|stripe\.com)\//i;   /* Xero online invoice (Stripe "Pay now") or Stripe itself */
+  var STORE = "https://store.zapier.com/api/records?secret=";
   var LEGAL = "Short Stay Family, St Andrews Property Co and East Fife Holiday Homes are trading names of Short Stay St Andrews Ltd.";
   var app = document.getElementById("app");
 
@@ -73,7 +76,7 @@
     var pm = m.pm || {};
     function item(x) { return { i: str(x.i, 40), t: str(x.t, 160), w: str(x.w, 400), a: num(x.a), on: !!x.on }; }
     return {
-      t: m.t, h: HOOK_OK.test(m.h || "") ? m.h : "", demo: !!m.demo,
+      t: m.t, h: HOOK_OK.test(m.h || "") ? m.h : "", demo: !!m.demo, ps: UUID4.test(m.ps || "") ? m.ps : "",
       b: BRANDS[m.b] ? m.b : "sssa", p: str(m.p, 120), d: str(m.d, 10), r: safeUrl(m.r), o: str(m.o, 60),
       pm: { n: str(pm.n, 60) || "your property manager", ph: str(pm.ph, 30) || "01334 845 845", bk: safeUrl(pm.bk) },
       s: (m.s || []).slice(0, 20).map(item).filter(function (x) { return x.i && x.t; }),
@@ -168,7 +171,7 @@
     if (T.total > 0) {
       kids.push(el("h2", { text: "How you'd like to pay" }));
       if (T.short) {
-        kids.push(el("div", { class: "note", text: "The distributable funds due to you before the work (" + price(M.inc) + ") won't quite cover this, so on this occasion we'll ask for payment before we go ahead. Once you approve, we'll email you a secure payment link (Stripe), where you can pay by card or bank transfer at no extra charge. As soon as it's through, we'll book the work and confirm the dates." }));
+        kids.push(el("div", { class: "note", text: "The distributable funds due to you before the work (" + price(M.inc) + ") won't quite cover this, so on this occasion we'll ask for payment before we go ahead. " + (M.ps || M.demo ? "Approving takes you straight to a secure payment page (Stripe), where you can pay by card or bank transfer at no extra charge." : "Once you approve, we'll email you a secure payment link (Stripe), where you can pay by card or bank transfer at no extra charge.") + " As soon as it's through, we'll book the work and confirm the dates." }));
       } else {
         var incTxt = M.inc == null ? "It comes off your next owner statement." : "It comes off your next owner statement. Income due to you before the work: " + price(M.inc) + ".";
         kids.push(el("div", { class: "pay" }, [
@@ -178,14 +181,14 @@
           ]),
           el("label", { class: "opt" + (T.card ? " on" : "") }, [
             el("input", { type: "radio", name: "pay", checked: T.card, onchange: function () { S.pay = "card"; render(); } }),
-            el("span", null, [el("b", { text: "Pay now by card or bank transfer" }), el("span", { class: "why", text: "We'll email you a secure payment link (Stripe), no extra charge." })])
+            el("span", null, [el("b", { text: "Pay now by card or bank transfer" }), el("span", { class: "why", text: M.ps || M.demo ? "A secure payment page (Stripe) opens straight away. No extra charge." : "We'll email you a secure payment link (Stripe), no extra charge." })])
           ])
         ]));
       }
     }
     var label = "Approve " + money(T.total);
     if (T.n === 0) label = T.qs.length ? "Send my choices" : "Nothing for now";
-    else if (T.card) label = "Approve & pay " + money(T.total);
+    else if (T.card) label = "Approve & pay " + money(T.total) + ((M.ps || M.demo) ? " now" : "");
     var book = M.pm.bk
       ? el("a", { class: "btn", href: M.pm.bk, target: "_blank", rel: "noopener noreferrer", title: "Book a call with " + pmFirst() }, [svg(CAL), "Book a call with " + pmFirst()])
       : el("a", { class: "btn", href: "tel:" + M.pm.ph.replace(/[^\d+]/g, "") }, ["Call " + pmFirst()]);
@@ -216,13 +219,51 @@
       at: new Date().toISOString()
     };
     S.err = "";
-    if (M.demo || !M.h) { done(act, T, true); return; }
+    var payHere = act === "approve" && T.card && T.n > 0 && (M.ps || M.demo);
+    if (M.demo || !M.h) { if (payHere) paying(T, body.at, true); else done(act, T, true); return; }
     btn.disabled = true; btn.textContent = "Sending…";
     var opts = { method: "POST", headers: { "Content-Type": "text/plain;charset=UTF-8" }, body: JSON.stringify(body) };
     fetch(M.h, opts).then(function (r) { if (!r.ok) throw new Error("http " + r.status); })
       .catch(function () { return fetch(M.h, Object.assign({ mode: "no-cors" }, opts)); }) /* the hook is idempotent per token */
-      .then(function () { store("ssf-sent-" + M.t, { act: act, at: body.at, total: T.total, card: T.card }); done(act, T, false); })
+      .then(function () { store("ssf-sent-" + M.t, { act: act, at: body.at, total: T.total, card: T.card }); if (payHere) paying(T, body.at, false); else done(act, T, false); })
       .catch(function () { S.err = "Sorry, that didn't go through. Please check your connection and try again, or call " + pmFirst() + " on " + M.pm.ph + "."; render(); });
+  }
+  /* pay there and then: the workflow raises the invoice and leaves its secure payment link under this menu's private
+     pay key; we wait for it (usually 10–20 seconds) and go straight to the payment page */
+  function paying(T, sentAt, demo) {
+    var status = el("p", { text: "Setting up your secure payment for " + money(T.total) + "…" });
+    var extra = el("div", { class: "done" });
+    var kids = [header(), el("div", { class: "done" }, [
+      el("div", { class: "spin", "aria-hidden": "true" }),
+      el("h1", { text: "Thank you — one moment" }), status,
+      el("p", { class: "small muted", text: "You'll pay by card or bank transfer on a secure Stripe payment page. No extra charge." }), extra
+    ])];
+    paint(kids); window.scrollTo(0, 0);
+    if (demo) { setTimeout(function () { status.textContent = "This is where the secure payment page (Stripe) opens, ready to pay " + money(T.total) + "."; extra.appendChild(el("p", { class: "small muted", text: "(Preview — nothing was sent and nothing is charged.)" })); var sp = app.querySelector(".spin"); if (sp) sp.remove(); }, 1500); return; }
+    var since = Date.parse(sentAt) - 120000, tries = 0;
+    var fallback = function (why) {
+      status.textContent = why || "We couldn't open the payment page just now, so we'll email you a secure payment link shortly. As soon as it's paid we'll book the work.";
+      extra.appendChild(el("p", { class: "small muted" }, ["Your choices are saved. Questions? Call " + pmFirst() + " on " + M.pm.ph + "."]));
+      var sp = app.querySelector(".spin"); if (sp) sp.remove();
+    };
+    (function poll() {
+      tries++;
+      fetch(STORE + M.ps, { cache: "no-store" }).then(function (r) { return r.ok ? r.json() : {}; }).then(function (d) {
+        var p = d && d.pay;
+        if (p && Date.parse(p.at || 0) >= since) {
+          if (p.test) return fallback("Test menu — no invoice is raised and nothing is charged.");
+          if (p.failed) return fallback();
+          if (p.url && PAY_OK.test(p.url)) {
+            status.textContent = "Taking you to the secure payment page…";
+            extra.appendChild(el("a", { class: "btn primary report", href: p.url, rel: "noopener" }, ["Pay " + money(+p.total || T.total) + " now"]));
+            store("ssf-pay-" + M.t, { url: p.url, total: p.total || T.total });
+            setTimeout(function () { location.assign(p.url); }, 600);
+            return;
+          }
+        }
+        if (tries < 45) setTimeout(poll, 2000); else fallback();
+      }).catch(function () { if (tries < 45) setTimeout(poll, 2500); else fallback(); });
+    })();
   }
   function done(act, T, demo) {
     var first = pmFirst(), lines = [];
@@ -270,7 +311,9 @@
     M.s.forEach(function (j) { S.s[j.i] = j.on; }); M.y.forEach(function (j) { S.y[j.i] = j.on; }); M.q.forEach(function (j) { S.q[j.i] = j.on; });
     if (M.p) document.title = M.p + " — choose the work";
     var prev = store("ssf-sent-" + M.t);
-    if (prev && prev.at) { S.err = ""; render(); var n = el("div", { class: "note small", text: "You sent your choices on " + longDate(prev.at) + ". You can change them below if you like — we'll use the latest ones." }); app.firstChild.insertBefore(n, app.firstChild.children[2]); }
+    var pv = store("ssf-pay-" + M.t);
+    if (pv && pv.url && PAY_OK.test(pv.url)) { render(); app.firstChild.insertBefore(el("div", { class: "note small" }, ["Still to pay? ", el("a", { href: pv.url, rel: "noopener", text: "Open your secure payment page (" + money(+pv.total || 0) + ")" })]), app.firstChild.children[2]); }
+    else if (prev && prev.at) { S.err = ""; render(); var n = el("div", { class: "note small", text: "You sent your choices on " + longDate(prev.at) + ". You can change them below if you like — we'll use the latest ones." }); app.firstChild.insertBefore(n, app.firstChild.children[2]); }
     else render();
   }).catch(function (e) {
     var msg = e && e.message === "old-browser"

@@ -11,7 +11,7 @@ Preview: <https://owners.shortstay.family/#demo>
 - **Nothing about any owner or property is stored here.** The menu travels in the link's `#` part (it never reaches a web server). `#m=` is base64url JSON; `#z=` is the same JSON deflate-raw compressed.
 - The owner's choices are POSTed (as `text/plain` JSON) to the Zapier catch hook named in the menu. Only `https://hooks.zapier.com/hooks/catch/…` addresses are accepted.
 - The workflow **"Family Suite — owner choices"** looks up `menu-<token>.json` that the Suite saved in SharePoint and works from *those* prices and items. Editing the link therefore changes nothing we act on. The hook is idempotent per token: the latest submission wins, and only one invoice is raised.
-- When the owner's income won't cover the total (or they choose to pay now), the workflow queues a Xero invoice on the Ancillary Services branding theme, which carries the Stripe "Pay now" link — the same mechanism as appraisal invoices. No card surcharge.
+- **Paying there and then:** when the owner's income won't cover the total (or they choose to pay now), the workflow raises a Xero invoice on the Ancillary Services branding theme straight away — the same Stripe "Pay now" mechanism as appraisal invoices, no card surcharge — and leaves its secure payment link in Storage by Zapier under the menu's private pay key (`ps`, a UUID4 in the link). The page waits for it (usually 10–20 seconds) and takes the owner straight to the payment page. If it doesn't arrive within 90 seconds the page says a payment link will be emailed instead.
 
 ## Menu format (v1)
 
@@ -32,7 +32,8 @@ Preview: <https://owners.shortstay.family/#demo>
   "q": [{ "i": "id", "t": "title", "w": "why", "rv": "review snippet", "rf": "review source", "lk": "https://…", "lt": "Bathroom, page 6 of the full report" }],
   "inc": 150,
   "fr": 0.1,
-  "x": "2026-12-21"
+  "x": "2026-12-21",
+  "ps": "UUID4 — private key the payment link is left under"
 }
 ```
 
