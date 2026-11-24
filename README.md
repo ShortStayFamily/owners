@@ -51,3 +51,13 @@ Preview: <https://owners.shortstay.family/#demo>
 ## Hosting
 
 GitHub Pages from `main` / root, custom domain in `CNAME`. DNS (Skystra): `CNAME owners → shortstayfamily.github.io`, plus the `_github-pages-challenge-ShortStayFamily` TXT record for domain verification. Content Security Policy allows scripts and styles from this site only, and network calls only to `hooks.zapier.com`.
+
+## Repair form — `/repair/`
+
+<https://owners.shortstay.family/repair/> (preview without sending: `/repair/#demo`)
+
+Tenants, guests and owners report a repair. Optional link parts: `?b=stapc|sssa|efhh` (brand, default St Andrews Property Co), `?a=` address, `?pc=` postcode, `?r=tenant|guest|owner`.
+
+- The form POSTs (`text/plain` JSON, `kind: "repair"`) to the Zapier workflow **"Family Suite — repair requests"**, which saves one JSON file in SharePoint › Property Management › Maintenance › Repair requests. It sends no emails; the page confirms receipt itself.
+- The Family Suite reads that folder, matches the property by postcode then address, and creates a **New** maintenance issue (source "Website repair form") that Harry triages. Requests it can't place wait at the top of the Maintenance board for a person to pick the property.
+- Nothing is stored on this site except the reporter's own name, email and phone in their browser, to save retyping.
