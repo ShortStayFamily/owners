@@ -37,6 +37,7 @@
     path.forEach(function (d) { var p = document.createElementNS(ns, d[0]); Object.keys(d[1]).forEach(function (k) { p.setAttribute(k, d[1][k]); }); s.appendChild(p); });
     return s;
   }
+  var DOC = [["path", { d: "M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" }], ["path", { d: "M14 3v5h5M9 13h6M9 17h6" }]];
   var CAL = [["rect", { x: "3", y: "5", width: "18", height: "16", rx: "2" }], ["path", { d: "M16 3v4M8 3v4M3 10h18" }]];
   function safeUrl(u) { return typeof u === "string" && /^https:\/\/[^\s"<>]+$/i.test(u) ? u : ""; }
   function str(v, max) { return String(v == null ? "" : v).slice(0, max || 400); }
@@ -131,10 +132,10 @@
     var T = sums(), kids = [header()];
     var expired = M.x && M.x < new Date().toISOString().slice(0, 10);
     kids.push(el("h1", { text: (M.p ? M.p + " — " : "") + "choose the work you'd like us to do" }));
-    kids.push(el("p", { class: "muted small" }, [
-      (M.o ? "Hello " + M.o + ". " : "") + "Tick what you'd like and we'll take care of it. Nothing goes ahead until you approve. ",
-      M.r ? el("a", { href: M.r, target: "_blank", rel: "noopener noreferrer", text: "View the full report" }) : null
-    ]));
+    kids.push(el("p", { class: "muted small", text: (M.o ? "Hello " + M.o + ". " : "") + "Tick what you'd like and we'll take care of it. Nothing goes ahead until you approve." }));
+    if (M.r || M.demo) kids.push(el("a", M.r
+      ? { class: "btn primary report", href: M.r, target: "_blank", rel: "noopener noreferrer" }
+      : { class: "btn primary report", href: "#", title: "In a real email this opens the full report, with photos", onclick: function (e) { e.preventDefault(); } }, [svg(DOC), "View the full report"]));
     if (expired) {
       kids.push(el("div", { class: "note", text: "This menu has expired. Please reply to our email or call " + pmFirst() + " on " + M.pm.ph + " and we'll send you an up-to-date one." }));
       return paint(kids);
@@ -145,7 +146,7 @@
       kids.push(el("div", { class: "list" }, M.s.map(function (j) { return itemRow(j, "s"); })));
       kids.push(el("label", { class: "auto" }, [
         el("input", { type: "checkbox", checked: S.auto, onchange: function (e) { S.auto = e.target.checked; } }),
-        el("span", { text: "Tick here if you would like us just to arrange these small jobs without seeking your permission" })
+        el("span", { text: "Tick here if, in future, you would like us to arrange these small jobs without seeking your permission" })
       ]));
     }
     if (M.y.length) {
