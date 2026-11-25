@@ -54,10 +54,4 @@ GitHub Pages from `main` / root, custom domain in `CNAME`. DNS (Skystra): `CNAME
 
 ## Repair form — `/repair/`
 
-<https://owners.shortstay.family/repair/> (preview without sending: `/repair/#demo`)
-
-Holiday guests and owners report a repair. Optional link parts: `?b=sssa|efhh` (brand, default Short Stay Family), `?a=` address, `?pc=` postcode, `?r=guest|owner`. **Student tenants** use the St Andrews Property Co website form (https://standrewsproperty.co.uk/maintenance-request/, "Report an issue" on that site); `?b=stapc` or `?r=tenant` redirects there.
-
-- The form POSTs (`text/plain` JSON, `kind: "repair"`) to the Zapier workflow **"Family Suite — repair requests"**, which saves one JSON file in SharePoint › Property Management › Maintenance › Repair requests. It sends no emails; the page confirms receipt itself.
-- The Family Suite reads that folder, matches the property by postcode then address, and creates a **New** maintenance issue (source "Website repair form") that Harry triages. Requests it can't place wait at the top of the Maintenance board for a person to pick the property.
-- Nothing is stored on this site except the reporter's own name, email and phone in their browser, to save retyping.
+Switched off 25 Nov 2026: the repair route is for student (PRT) tenants only, and they use the St Andrews Property Co website form, https://standrewsproperty.co.uk/maintenance-request/ ("Report an issue" on that site). `/repair/` now just redirects there. The Zapier workflow "Family Suite — repair requests" is disabled.
