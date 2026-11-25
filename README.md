@@ -55,3 +55,11 @@ GitHub Pages from `main` / root, custom domain in `CNAME`. DNS (Skystra): `CNAME
 ## Repair form — `/repair/`
 
 Switched off 25 Nov 2026: the repair route is for student (PRT) tenants only, and they use the St Andrews Property Co website form, https://standrewsproperty.co.uk/maintenance-request/ ("Report an issue" on that site). `/repair/` now just redirects there. The Zapier workflow "Family Suite — repair requests" is disabled.
+
+## Viewing booking page — `/view/`
+
+St Andrews Property Co viewing invites (sent from lettings@ by the Zapier workflow **"Family Suite — viewings"**) carry a button per 15-minute time. Each opens `/view/#m=…&s=HH:MM` (or `&a=cancel` / `&a=decline`). Nothing is booked until the applicant presses the button on the page, so email link scanners can't book.
+
+- `#m=` is base64url JSON: `{v:1, r: round id (VR-…), t: this group's 24-character token, h: hook, p: property, a: address, d: date, s: [start times], c: booking closes (ISO), n: first name, w: where to meet}`.
+- The press POSTs `{kind:"view-book"|"view-cancel", r, t, slot, why, ps}` as `text/plain` JSON to the hook. `ps` is a one-off UUID4 made on the page; the workflow gives out times first come, first served (with SharePoint If-Match, so two presses can't take the same time) and puts the outcome under `ps` in Storage by Zapier, which the page polls to say "You're booked for 4:15pm" or "4pm had just gone, so you've got 4:15pm".
+- Preview: <https://owners.shortstay.family/view/#demo>
