@@ -14,3 +14,4 @@
 .steps{margin:8px 0 0;padding-left:20px;font-size:14px;line-height:22px}
 .hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
 @media (max-width:520px){.facts{grid-template-columns:1fr}}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
