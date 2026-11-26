@@ -15,3 +15,6 @@
 .hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
 @media (max-width:520px){.facts{grid-template-columns:1fr}}
 .btns{display:flex;flex-wrap:wrap;gap:8px}
+.limrow{display:flex;align-items:center;gap:8px}
+.fld .limrow input[type=text]{width:140px;flex:none}
+.fld p{margin:0}
