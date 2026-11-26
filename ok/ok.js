@@ -2,9 +2,10 @@
    Opened from the buttons in the approval email. The link carries a summary in #m= (base64url JSON):
    {v:1, t: token, h: hook, b: brand, p: property, w: what we recommend, ti: issue title, c: contractor/item price text,
     f: fee text, tot: total text, pm: {n, ph}, l: let property (Repairing Standard note), lm: the owner's current limit in £ ex VAT
-    (0 = we ask about every repair)} and optionally &a=approve|call|decline.
-   The owner can also give a figure we may spend on a repair without asking them first (lim, whole pounds ex VAT); it is sent
-   with their choice and updates the property's limit in the Family Suite. Blank = leave it as it is.
+    (0 = we ask about every repair), ask: false once the owner has given us their figure} and optionally &a=approve|call|decline.
+   Until the owner has given it, they must enter the most we may spend on a repair without asking them first (lim, whole
+   pounds ex VAT; 0 = ask every time). It is sent with their choice and updates the property's limit in the Family Suite.
+   Once given (ask: false) the box is not shown again.
    The choice posts {kind:"owner-approval", t, act, note, lim, at} to the Zapier workflow "Family Suite — owner approvals",
    which saves it for the Family Suite. Nothing is stored on this site. #demo shows a sample. */
 (function () {
@@ -15,7 +16,7 @@
     stapc: { n: "St Andrews Property Co", img: "../img/brand-stapc.png" }
   };
   var HOOK_OK = /^https:\/\/hooks\.zapier\.com\/hooks\/catch\/\d+\/[A-Za-z0-9]+\/?$/;
-  var DEMO = { v: 1, t: "DEMOdemoDEMOdemo0000", h: "", b: "sssa", p: "Flat 2, 9 North Street", ti: "Shower leaking into the flat below", w: "Replace the shower valve and reseal the tray — Ellis Phelps Plumbing", c: "£420.00", f: "£50.40", tot: "£470.40", pm: { n: "Niamh Mckee", ph: "01334 845 845" }, l: false, lm: 0, demo: true };
+  var DEMO = { v: 1, t: "DEMOdemoDEMOdemo0000", h: "", b: "sssa", p: "Flat 2, 9 North Street", ti: "Shower leaking into the flat below", w: "Replace the shower valve and reseal the tray — Ellis Phelps Plumbing", c: "£420.00", f: "£50.40", tot: "£470.40", pm: { n: "Niamh Mckee", ph: "01334 845 845" }, l: false, lm: 0, ask: true, demo: true };
   var app = document.getElementById("app");
   function el(tag, a, kids) {
     var n = document.createElement(tag); a = a || {};
@@ -44,7 +45,7 @@
     var pm = m.pm || {};
     return { v: 1, t: m.t, h: HOOK_OK.test(m.h || "") ? m.h : "", b: BRANDS[m.b] ? m.b : "sssa", p: str(m.p, 160), ti: str(m.ti, 200), w: str(m.w, 400), c: str(m.c, 30), f: str(m.f, 30), tot: str(m.tot, 30),
       pm: { n: str(pm.n, 60) || "your property manager", ph: str(pm.ph, 30) || "01334 845 845" }, l: !!m.l,
-      lm: isFinite(+m.lm) && +m.lm > 0 ? Math.round(+m.lm) : 0 };
+      lm: isFinite(+m.lm) && +m.lm > 0 ? Math.round(+m.lm) : 0, ask: m.ask !== false };
   }
   var M, S = { act: "", note: "", lim: "", sending: false, err: "" };
   function limVal() { var v = String(S.lim).replace(/[£,\s]/g, ""); if (v === "") return null; if (!/^\d{1,6}(\.\d{1,2})?$/.test(v)) return NaN; return Math.round(+v); }
@@ -66,13 +67,15 @@
     var nt = el("textarea", { id: "o-nt", rows: "2", maxlength: "1000", placeholder: "Anything you'd like us to know (optional)" }); nt.value = S.note;
     nt.addEventListener("input", function () { S.note = nt.value; });
     card.appendChild(el("div", { class: "fld" }, [nt]));
-    var li = el("input", { id: "o-lim", type: "text", inputmode: "numeric", maxlength: "8", placeholder: "e.g. 150", autocomplete: "off", "aria-describedby": "o-lim-h" }); li.value = S.lim;
+    if (M.ask) {
+    var li = el("input", { id: "o-lim", type: "text", inputmode: "numeric", maxlength: "8", placeholder: "e.g. 150", autocomplete: "off", required: true, "aria-required": "true", "aria-describedby": "o-lim-h" }); li.value = S.lim;
     li.addEventListener("input", function () { S.lim = li.value; });
     card.appendChild(el("div", { class: "fld" }, [
-      el("label", { for: "o-lim" }, [el("b", { text: "Small repairs without asking you first (optional)" })]),
-      el("p", { id: "o-lim-h", class: "muted small", text: (M.lm > 0 ? "At the moment we go ahead without asking you on repairs up to £" + M.lm + " + VAT. " : "At the moment we ask you before every repair that needs a contractor. ") + "If you're happy for us to go ahead on smaller repairs without checking with you, enter the most we may spend (£, plus VAT). Enter 0 to be asked every time, or leave it blank to keep things as they are." }),
+      el("label", { for: "o-lim" }, [el("b", { text: "Small repairs without asking you first" })]),
+      el("p", { id: "o-lim-h", class: "muted small", text: "It's your investment, so we always ask first. Please tell us the most we may spend on a repair without checking with you (£, plus VAT) — we'll only ask you this once. Enter 0 if you'd like us to ask you about every repair." }),
       el("div", { class: "limrow" }, [el("span", { text: "£" }), li, el("span", { class: "muted small", text: "+ VAT per repair" })])
     ]));
+    }
     if (S.err) card.appendChild(el("p", { class: "err", role: "alert", text: S.err }));
     card.appendChild(el("div", { class: "btns" }, [
       el("button", { class: "btn primary report", type: "button", disabled: S.sending, text: S.sending && S.act === "approve" ? "Sending…" : "Approve " + M.tot, on: { click: function () { send("approve"); } } }),
@@ -85,8 +88,9 @@
   }
   function send(act) {
     S.act = act; S.err = "";
-    var lv = limVal();
-    if (lv !== lv) { S.err = "Please enter the figure as a number of pounds, e.g. 150 — or leave it blank."; render(); var f = document.getElementById("o-lim"); if (f) f.focus(); return; }
+    var lv = M.ask ? limVal() : null;
+    if (M.ask && lv === null) { S.err = "Please enter the most we may spend on a repair without asking you — or 0 if you'd like us to ask every time."; render(); var g = document.getElementById("o-lim"); if (g) g.focus(); return; }
+    if (lv !== lv) { S.err = "Please enter the figure as a number of pounds, e.g. 150 — or 0 to be asked every time."; render(); var f = document.getElementById("o-lim"); if (f) f.focus(); return; }
     if (lv != null && lv > 100000) { S.err = "That figure looks too high — please check it, or call us on " + M.pm.ph + "."; render(); return; }
     var body = { kind: "owner-approval", t: M.t, act: act, note: S.note.trim(), lim: lv, at: new Date().toISOString() };
     if (M.demo || !M.h) { done(); return; }
@@ -100,7 +104,7 @@
   function done() {
     app.textContent = "";
     var msg = S.act === "approve" ? "Thank you — approved. We'll arrange it and let you know when it's booked." : S.act === "call" ? first() + " will call you to talk it through before anything goes ahead." : "Thank you for letting us know. We won't go ahead; " + first() + " may be in touch if anything changes.";
-    var lv = limVal(), lmsg = lv == null || lv !== lv ? "" : lv > 0 ? "We've noted that we can go ahead on repairs up to £" + lv + " + VAT without asking you first." : "We've noted that you'd like us to ask you about every repair.";
+    var lv = M.ask ? limVal() : null, lmsg = lv == null || lv !== lv ? "" : lv > 0 ? "We've noted that we can go ahead on repairs up to £" + lv + " + VAT without asking you first." : "We've noted that you'd like us to ask you about every repair.";
     app.appendChild(el("div", { class: "card done" }, [head(S.act === "approve" ? "Approved" : S.act === "call" ? "We'll call you" : "Noted"), el("p", { text: msg + (M.demo ? " (Preview — nothing was sent.)" : "") }), lmsg ? el("p", { text: lmsg }) : null, el("p", { class: "muted small", text: "Questions? Call " + M.pm.ph + "." })]));
     window.scrollTo(0, 0);
   }
