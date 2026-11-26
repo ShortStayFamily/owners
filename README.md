@@ -63,3 +63,12 @@ St Andrews Property Co viewing invites (sent from lettings@ by the Zapier workfl
 - `#m=` is base64url JSON: `{v:1, r: round id (VR-…), t: this group's 24-character token, h: hook, p: property, a: address, d: date, s: [start times], c: booking closes (ISO), n: first name, w: where to meet}`.
 - The press POSTs `{kind:"view-book"|"view-cancel", r, t, slot, why, ps}` as `text/plain` JSON to the hook. `ps` is a one-off UUID4 made on the page; the workflow gives out times first come, first served (with SharePoint If-Match, so two presses can't take the same time) and puts the outcome under `ps` in Storage by Zapier, which the page polls to say "You're booked for 4:15pm" or "4pm had just gone, so you've got 4:15pm".
 - Preview: <https://owners.shortstay.family/view/#demo>
+
+## Register interest page — `/interest/`
+
+When a property on the Family Suite's Coming free list matches someone on the student waiting list, lettings@ emails them automatically (at most once a week each) with **I'm interested** and **Not for us** buttons. Each opens `/interest/#m=…` (with `&a=not` for the second). Nothing is sent until they press the button on the page, so email link scanners can't register anything.
+
+- `#m=` is base64url JSON: `{v:1, t: token, h: hook, p: property, a: area, b: bedrooms, r: rent text, f: free from (YYYY-MM-DD), n: first name}`.
+- The press POSTs `{kind:"student-interest", t, act:"yes"|"not", why:"far"|"dear"|"found"|"other", note, at}` as `text/plain` JSON to the Zapier workflow **"Family Suite — student interest"**, which saves it in SharePoint › Student Property Lettings › Viewings › Interest. The Suite matches the token to the person and property, records it on their waiting-list card and moves them up for that property.
+- "I'm interested" says thank you and that we'll send the viewing link in due course.
+- Preview: <https://owners.shortstay.family/interest/#demo> and `#demo&a=not`
