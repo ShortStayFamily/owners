@@ -62,7 +62,7 @@
   function clean(m) {
     if (!m || m.v !== 1 || m.kind !== "licence" || !/^[A-Za-z0-9_-]{16,64}$/.test(String(m.t || ""))) throw new Error("bad-menu");
     var c = (Array.isArray(m.c) ? m.c : []).slice(0, 12).map(function (x) {
-      return { i: str(x.i, 40), t: str(x.t, 120), w: str(x.w, 300), a: num(x.a), st: ["need", "ask", "ok"].indexOf(x.st) >= 0 ? x.st : "ask", d: str(x.d, 10) };
+      return { i: str(x.i, 40), t: str(x.t, 120), w: str(x.w, 300), a: num(x.a), st: ["need", "ask", "ok"].indexOf(x.st) >= 0 ? x.st : "ask", d: str(x.d, 10), on: x.on !== false };
     }).filter(function (x) { return x.i && x.t; });
     return {
       t: m.t, demo: !!m.demo, h: HOOK_OK.test(String(m.h || "")) ? m.h : "", b: BRANDS[m.b] ? m.b : "sssa",
@@ -98,7 +98,7 @@
   function render() {
     var kids = [header()];
     kids.push(el("h1", { text: (M.o ? M.o + ", y" : "Y") + "our short-term let licence" }));
-    kids.push(el("p", { text: "For " + M.p + ". Fife Council needs a set of safety certificates with the " + (M.kd === "renewal" ? "renewal" : "application") + ". Tick any certificate below that you don't already have a valid copy of, and we'll arrange it. Then pay, and we'll book the visits and make the application." }));
+    kids.push(el("p", { text: "For " + M.p + ". Fife Council needs a set of safety certificates with the " + (M.kd === "renewal" ? "renewal" : "application") + ". We've ticked the certificates we don't have on file. Untick any you already hold a valid copy of (and email it to compliance@shortstay.family), or tick any you'd like us to arrange. Then pay, and we'll book the visits and make the application." }));
     var list = el("div", { class: "list" });
     M.c.forEach(function (x) {
       var right, box;
@@ -107,7 +107,7 @@
       if (x.st === "ask") box = el("input", { type: "checkbox", id: "c-" + x.i, checked: !!S.on[x.i], onchange: function (e) { S.on[x.i] = e.target.checked; render(); } });
       else if (x.st === "need") box = el("input", { type: "checkbox", checked: true, disabled: true, "aria-label": "Needed" });
       else box = el("span", { "aria-hidden": "true", style: null, class: "okmark", text: "✓" });
-      var why = x.st === "need" ? (x.w || "Needed — we don't have a valid one on file") : x.st === "ok" ? "We already have this — nothing to do" : (x.w || "Tick if you don't have a valid one. If you do, just email a copy to compliance@shortstay.family.");
+      var why = x.st === "need" ? (x.w || "Needed — we don't have a valid one on file") : x.st === "ok" ? "We already have this — nothing to do" : (x.w || "Untick if you already have a valid one, and email us a copy.");
       list.appendChild(el("label", { class: "row", for: x.st === "ask" ? "c-" + x.i : null }, [box, el("span", { class: "txt" }, [x.t, el("span", { class: "why", text: why })]), right]));
     });
     kids.push(el("h2", { text: "Certificates" }));
@@ -188,7 +188,7 @@
     combo: { a: 175 }, x: "2026-12-31", ps: ""
   };
 
-  readHash().then(function (m) { M = clean(m); var prev = store("ssf-lic-" + M.t); if (prev && Array.isArray(prev.c)) prev.c.forEach(function (i) { S.on[i] = true; }); document.title = "Your licence — " + M.p; render(); })
+  readHash().then(function (m) { M = clean(m); var prev = store("ssf-lic-" + M.t); M.c.forEach(function (x) { if (x.st === "ask" && x.on) S.on[x.i] = true; }); if (prev && Array.isArray(prev.c)) { S.on = {}; prev.c.forEach(function (i) { S.on[i] = true; }); } document.title = "Your licence — " + M.p; render(); })
     .catch(function (e) {
       paint([el("h1", { text: "This link doesn't look right" }), el("p", { text: e && e.message === "old-browser" ? "Your browser is too old to open this link. Please try another browser, reply to our email, or call us on 01334 845 845." : "Please open the link from our email again, or call us on 01334 845 845." })]);
     });
