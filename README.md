@@ -72,3 +72,18 @@ When a property on the Family Suite's Coming free list matches someone on the st
 - The press POSTs `{kind:"student-interest", t, act:"yes"|"not", why:"far"|"dear"|"found"|"other", note, at}` as `text/plain` JSON to the Zapier workflow **"Family Suite — student interest"**, which saves it in SharePoint › Student Property Lettings › Viewings › Interest. The Suite matches the token to the person and property, records it on their waiting-list card and moves them up for that property.
 - "I'm interested" says thank you and that we'll send the viewing link in due course.
 - Preview: <https://owners.shortstay.family/interest/#demo> and `#demo&a=not`
+
+## Licence choices page — `/licence/`
+
+For a short-term let licence where we don't yet know which certificates the owner already holds. The Suite emails the owner a link to `/licence/#z=…` (or `#m=…`) carrying a licence menu:
+
+```
+{ v:1, kind:"licence", t, h, b, p, o, kd:"new"|"renewal", pm:{n,ph}, cf, fee,
+  c:[{ i, t, w, a, st:"need"|"ask"|"ok", d }], combo:{a}, x, ps }
+```
+
+- `need` certificates are ticked and locked (missing or due on our records), `ask` ones are tick boxes, `ok` ones show as held with their date.
+- Prices are ex VAT; the page shows VAT at 20% and the Fife Council fee (`cf`) at cost. Gas safety and legionella together use the one-visit price (`combo.a`).
+- **Confirm and pay** posts `{v:1, kind:"licence-choice", t, c:[ids], shown, at}` as `text/plain` to the hook `h` (Zapier "Family Suite — licence choices"), then polls Storage by Zapier with the private key `ps` for the Xero payment link and goes to it.
+- The workflow prices everything again from the menu the Suite saved in SharePoint, never from the page, and never invoices the same token twice.
+- `#demo` shows a sample with no sending.
